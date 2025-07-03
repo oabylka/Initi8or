@@ -322,27 +322,27 @@ class InitiativeApp {
     }
 
     showCreateForm() {
-        this.renderNavBar();
+        this.setActiveNav('initiatives');
         const content = `
-            <div class=\"card\" style=\"margin-top:90px;\">
+            <div class="card" style="margin-top:90px;">
                 <h2>Create New Initiative</h2>
-                <form id=\"initiative-form\">
+                <form id="initiative-form">
                     <div class="form-group">
                         <label for="title">Initiative Title</label>
-                        <input type="text" id="title" required>
+                        <input type="text" id="title" class="form-control" required>
                     </div>
                     
                     <div class="form-group">
                         <label for="description">Description</label>
-                        <textarea id="description" rows="4" required></textarea>
+                        <textarea id="description" class="form-control" rows="4" required></textarea>
                     </div>
                     
                     <div class="form-group">
                         <label for="objectives">Objectives (one per line)</label>
-                        <textarea id="objectives" rows="3" required></textarea>
+                        <textarea id="objectives" class="form-control" rows="3" required></textarea>
                     </div>
                     
-                    <button type="submit">Create Initiative</button>
+                    <button type="submit" class="btn btn-primary">Create Initiative</button>
                 </form>
             </div>
         `;
@@ -379,7 +379,8 @@ class InitiativeApp {
         const content = `
             <div class="card">
                 <h2>Processing Initiative</h2>
-                <div class="loading">
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
                     <p>AI is analyzing dependencies and generating artifacts...</p>
                     <p>This may take a moment.</p>
                 </div>
@@ -408,14 +409,15 @@ class InitiativeApp {
     showArtifactReview(artifacts) {
         // Store the original onePager for editing
         this._onePagerContent = artifacts.onePager;
-        this._initiativeId = this.currentInitiative?.id || artifacts.initiativeId || artifacts.id; // fallback for id
+        this._initiativeId = this.currentInitiative?.id || artifacts.initiativeId || artifacts.id;
+        
         const content = `
             <div class="card">
                 <h2>Review Generated Artifacts</h2>
                 
                 <h3>Team Dependencies</h3>
                 <div class="team-list">
-                    ${artifacts.teams.map(team => `<span class="team-tag">${team}</span>`).join('')}
+                    ${artifacts.teams.map(team => `<span class="team-tag assigned">${team}</span>`).join('')}
                 </div>
                 
                 <h3>One-Pager</h3>
@@ -423,12 +425,12 @@ class InitiativeApp {
                     <div id="one-pager-editable" contenteditable="true" style="outline: none; min-height: 200px; font-size: 1.1rem; line-height: 1.7;">
                         ${this._formatOnePagerForEdit(this._onePagerContent)}
                     </div>
-                    <button id="save-one-pager" style="margin-top: 1rem; padding: 0.5rem 1.2rem; font-size: 1rem; border-radius: 4px; border: none; background: #222; color: #fff; cursor: pointer;">Save</button>
+                    <button id="save-one-pager" class="btn btn-secondary" style="margin-top: 1rem;">Save</button>
                     <span id="one-pager-save-status" style="margin-left:1em;font-size:1em;"></span>
                 </div>
                 
                 <h3>Task Breakdown</h3>
-                <table class="task-table">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>Task</th>
@@ -441,28 +443,30 @@ class InitiativeApp {
                         ${artifacts.taskBreakdown.map(task => `
                             <tr>
                                 <td>${task.title}</td>
-                                <td>${task.team}</td>
-                                <td>${task.priority}</td>
-                                <td>${task.estimated_hours}</td>
+                                <td><span class="team-tag">${task.team}</span></td>
+                                <td><span class="status status-${task.priority.toLowerCase()}">${task.priority}</span></td>
+                                <td>${task.estimated_hours}h</td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
                 
-                <button onclick="app.launchInitiative()">Launch Initiative (Create Jira Tickets)</button>
-                <button onclick="app.showCreateForm()">Start Over</button>
+                <div class="card-actions">
+                    <button class="btn btn-success" onclick="app.launchInitiative()">
+                        <i class="fas fa-rocket"></i> Launch Initiative (Create Jira Tickets)
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.showCreateForm()">Start Over</button>
+                </div>
             </div>
         `;
         
         document.getElementById('main-content').innerHTML = content;
         document.getElementById('save-one-pager').addEventListener('click', async () => {
-            // Save the edited content (frontend and backend)
             const editableDiv = document.getElementById('one-pager-editable');
             this._onePagerContent = editableDiv.innerHTML;
             const statusSpan = document.getElementById('one-pager-save-status');
             statusSpan.textContent = 'Saving...';
             try {
-                // Send to backend
                 const response = await fetch(`/api/initiatives/${this._initiativeId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -480,17 +484,14 @@ class InitiativeApp {
         });
     }
 
-    // Helper to format the One Pager for editing with styles similar to the screenshot
     _formatOnePagerForEdit(onePager) {
-        // Basic formatting: bold persona, bullet points, spacing
-        // We'll use regex to bold Persona lines and wrap bullets
         let html = onePager
             .replace(/(Persona: [^\n]+)/g, '<div style="font-weight: bold; font-size: 1.15em; margin-top: 1.2em; margin-bottom: 0.3em;">$1</div>')
             .replace(/\n\s*\u2022\s*(.+)/g, '<ul style="margin-left:2em; margin-bottom:0.7em;"><li style="margin-bottom:0.5em;">$1</li></ul>')
             .replace(/\n/g, '<br>');
-        // Add a large title if not present
+        
         if (!/^<div style="font-weight: bold; font-size: 2em;/.test(html)) {
-            html = '<div style="font-weight: bold; font-size: 2em; margin-bottom: 1em;">User Stories</div>' + html;
+            html = '<div style="font-weight: bold; font-size: 2em; margin-bottom: 1em;">Initiative Overview</div>' + html;
         }
         return html;
     }
@@ -500,7 +501,8 @@ class InitiativeApp {
             const content = `
                 <div class="card">
                     <h2>Launching Initiative</h2>
-                    <div class="loading">
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
                         <p>Creating Jira tickets...</p>
                     </div>
                 </div>
@@ -524,12 +526,13 @@ class InitiativeApp {
         const content = `
             <div class="card">
                 <h2>Initiative Dashboard</h2>
-                <div class="success">
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
                     Initiative launched successfully!
                 </div>
                 
                 <h3>Created Jira Tickets</h3>
-                <table class="task-table">
+                <table class="table">
                     <thead>
                         <tr>
                             <th>Team</th>
@@ -540,12 +543,23 @@ class InitiativeApp {
                     <tbody>
                         ${createdTickets.map(ticket => `
                             <tr>
-                                <td>${ticket.team}</td>
-                                <td>${ticket.success ? 'Created' : 'Failed'}</td>
+                                <td><span class="team-tag">${ticket.team}</span></td>
                                 <td>
                                     ${ticket.success ? 
-                                        `<a href="${ticket.ticketUrl}" target="_blank">${ticket.ticketKey}</a>` : 
-                                        'N/A'
+                                        `<span class="status status-launched">
+                                            <i class="fas fa-check"></i> Created
+                                        </span>` :
+                                        `<span class="status status-draft">
+                                            <i class="fas fa-times"></i> Failed
+                                        </span>`
+                                    }
+                                </td>
+                                <td>
+                                    ${ticket.success ? 
+                                        `<a href="${ticket.ticketUrl}" target="_blank" class="btn btn-sm btn-outline">
+                                            <i class="fas fa-external-link-alt"></i> ${ticket.ticketKey}
+                                        </a>` : 
+                                        `<span class="text-muted">N/A</span>`
                                     }
                                 </td>
                             </tr>
@@ -553,7 +567,9 @@ class InitiativeApp {
                     </tbody>
                 </table>
                 
-                <button onclick="app.showCreateForm()">Create Another Initiative</button>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="app.showCreateForm()">Create Another Initiative</button>
+                </div>
             </div>
         `;
         
@@ -563,118 +579,108 @@ class InitiativeApp {
     showError(message) {
         const content = `
             <div class="card">
-                <div class="error">
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-triangle"></i>
                     ${message}
                 </div>
-                <button onclick="app.showCreateForm()">Try Again</button>
-                <button onclick="app.showLogs()">Show Error Logs</button>
-                <div id="log-section"></div>
+                <div class="card-actions">
+                    <button class="btn btn-primary" onclick="app.showCreateForm()">Try Again</button>
+                </div>
             </div>
         `;
         
         document.getElementById('main-content').innerHTML = content;
     }
 
-    async showLogs() {
-        const logSection = document.getElementById('log-section');
-        if (!logSection) return;
-        logSection.innerHTML = '<p>Loading logs...</p>';
-        try {
-            const response = await fetch('/api/logs');
-            const data = await response.json();
-            if (!data.logs || !data.logs.length) {
-                logSection.innerHTML = '<p>No failed AI logs found.</p>';
-                return;
-            }
-            logSection.innerHTML = `
-                <h3>Failed AI Request Logs</h3>
-                <button onclick="app.showLogs()">Refresh Logs</button>
-                <ul style="max-height:200px;overflow:auto;background:#f8f9fa;padding:1em;border-radius:4px;">
-                    ${data.logs.map(log => `
-                        <li style="margin-bottom:1em;">
-                            <strong>Time:</strong> ${log.timestamp}<br>
-                            <strong>Prompt:</strong> <pre style='white-space:pre-wrap;'>${log.prompt}</pre>
-                            <strong>System Message:</strong> <pre style='white-space:pre-wrap;'>${log.systemMessage || ''}</pre>
-                            <strong>Error:</strong> <span style='color:red;'>${log.error}</span>
-                        </li>
-                    `).join('')}
-                </ul>
-            `;
-        } catch (err) {
-            logSection.innerHTML = '<p>Failed to load logs.</p>';
-        }
-    }
-
     async showAllInitiatives() {
+        this.setActiveNav('initiatives');
         this.renderNavBar();
+        
         document.getElementById('main-content').innerHTML = `
-            <div style=\"background:#181A20;min-height:100vh;padding:2rem;margin-top:90px;\">
-                <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;\">
-                    <h1 style=\"color:#fff;font-size:2rem;font-weight:700;\">P&E Initiatives</h1>
-                    <button onclick=\"app.showCreateForm()\" style=\"background:#fff;color:#181A20;font-weight:600;padding:0.7em 1.5em;border-radius:8px;border:none;font-size:1rem;box-shadow:0 2px 8px #0002;cursor:pointer;\">+ Create initiative</button>
+            <div style="background:#181A20;min-height:100vh;padding:2rem;margin-top:90px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;">
+                    <h1 style="color:#fff;font-size:2rem;font-weight:700;">P&E Initiatives</h1>
+                    <button onclick="app.showCreateForm()" class="btn btn-primary">+ Create initiative</button>
                 </div>
-                <div id=\"initiatives-list\"></div>
+                <div id="initiatives-list">
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <p style="color:#fff;">Loading initiatives...</p>
+                    </div>
+                </div>
             </div>
         `;
+        
         const listEl = document.getElementById('initiatives-list');
+        
         try {
             const response = await fetch('/api/initiatives');
             if (!response.ok) throw new Error('Failed to fetch initiatives');
+            
             const result = await response.json();
             const initiatives = result.data || result;
+            
             if (!initiatives.length) {
-                listEl.innerHTML = `<div style='color:#fff;text-align:center;padding:2em;'>No initiatives found.</div>`;
+                listEl.innerHTML = `
+                    <div style='color:#fff;text-align:center;padding:2em;'>
+                        <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                        <h3>No initiatives found</h3>
+                        <p>Get started by creating your first initiative.</p>
+                        <button onclick="app.showCreateForm()" class="btn btn-primary">Create First Initiative</button>
+                    </div>
+                `;
                 return;
             }
+            
             listEl.innerHTML = initiatives.map((initiative, idx) => {
-                // Progress bar: use a fake value for now (20% or random)
                 const progress = initiative.progress || Math.floor(Math.random()*60+20);
                 return `
-                <div class="initiative-row" style="background:#23242A;border-radius:16px;margin-bottom:1.5rem;padding:1.5rem 2rem;box-shadow:0 2px 12px #0003;cursor:pointer;transition:box-shadow .2s;position:relative;" onclick="app.toggleInitiativeExpand(${idx})" id="initiative-row-${idx}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <div style="color:#fff;font-size:1.3rem;font-weight:600;">${initiative.title}</div>
-                            <div style="color:#b0b3b8;font-size:1rem;margin-top:0.2em;">${initiative.created_at ? new Date(initiative.created_at).toLocaleDateString() : ''}</div>
-                        </div>
-                        <div style="flex:1;margin:0 2em;max-width:300px;">
-                            <div style="background:#23242A;border-radius:8px;height:8px;width:100%;overflow:hidden;">
-                                <div style="background:#00E0C6;height:100%;width:${progress}%;transition:width .4s;"></div>
+                    <div class="initiative-row" style="background:#23242A;border-radius:16px;margin-bottom:1.5rem;padding:1.5rem 2rem;box-shadow:0 2px 12px #0003;cursor:pointer;transition:box-shadow .2s;position:relative;" onclick="app.toggleInitiativeExpand(${idx})" id="initiative-row-${idx}">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="color:#fff;font-size:1.3rem;font-weight:600;">${initiative.title}</div>
+                                <div style="color:#b0b3b8;font-size:1rem;margin-top:0.2em;">${initiative.created_at ? new Date(initiative.created_at).toLocaleDateString() : ''}</div>
                             </div>
-                            <div style="color:#b0b3b8;font-size:0.95em;margin-top:0.2em;">${progress}%</div>
+                            <div style="flex:1;margin:0 2em;max-width:300px;">
+                                <div style="background:#23242A;border-radius:8px;height:8px;width:100%;overflow:hidden;">
+                                    <div style="background:#00E0C6;height:100%;width:${progress}%;transition:width .4s;"></div>
+                                </div>
+                                <div style="color:#b0b3b8;font-size:0.95em;margin-top:0.2em;">${progress}%</div>
+                            </div>
+                            <div style="color:#b0b3b8;font-size:1em;">&#8964;</div>
+                            <button onclick="event.stopPropagation();app.deleteInitiative('${initiative.id}')" title="Delete" class="btn btn-sm btn-danger" style="margin-left:1.5em;">Delete</button>
                         </div>
-                        <div style="color:#b0b3b8;font-size:1em;">&#8964;</div>
-                        <button onclick="event.stopPropagation();app.deleteInitiative('${initiative.id}')" title="Delete" style="margin-left:1.5em;background:#ff4d4f;color:#fff;border:none;padding:0.5em 1em;border-radius:6px;font-weight:600;cursor:pointer;">Delete</button>
-                    </div>
-                    <div class="initiative-expand" id="initiative-expand-${idx}" style="display:none;margin-top:2em;">
-                        <div style="color:#b0b3b8;font-size:1.1em;margin-bottom:1em;">Collaboration teams</div>
-                        <div style="display:flex;gap:1em;margin-bottom:1.5em;">
-                            ${(initiative.team_assignments||[]).map(team => `<div style="background:#181A20;border-radius:10px;padding:1em 1.5em;min-width:120px;display:flex;flex-direction:column;align-items:center;box-shadow:0 1px 4px #0002;">
-                                <div style="font-weight:700;color:#fff;font-size:1.1em;margin-bottom:0.3em;">${team}</div>
-                                <div style="color:#b0b3b8;font-size:0.95em;">Team</div>
-                            </div>`).join('') || '<span style="color:#b0b3b8;">No teams assigned</span>'}
+                        <div class="initiative-expand" id="initiative-expand-${idx}" style="display:none;margin-top:2em;">
+                            <div style="color:#b0b3b8;font-size:1.1em;margin-bottom:1em;">Collaboration teams</div>
+                            <div style="display:flex;gap:1em;margin-bottom:1.5em;">
+                                ${(initiative.team_assignments||[]).map(team => `
+                                    <div style="background:#181A20;border-radius:10px;padding:1em 1.5em;min-width:120px;display:flex;flex-direction:column;align-items:center;box-shadow:0 1px 4px #0002;">
+                                        <div style="font-weight:700;color:#fff;font-size:1.1em;margin-bottom:0.3em;">${team}</div>
+                                        <div style="color:#b0b3b8;font-size:0.95em;">Team</div>
+                                    </div>
+                                `).join('') || '<span style="color:#b0b3b8;">No teams assigned</span>'}
+                            </div>
+                            <button onclick="event.stopPropagation();app.showPRDLink('${initiative.id}')" class="btn btn-outline">View PRD</button>
                         </div>
-                        <button onclick="event.stopPropagation();app.showPRDLink('${initiative.id}')" style="background:#23242A;color:#00E0C6;border:1px solid #00E0C6;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">View PRD</button>
                     </div>
-                </div>
                 `;
             }).join('');
-            // Store for expand/collapse
+            
             this._initiatives = initiatives;
             this._expanded = Array(initiatives.length).fill(false);
+            
         } catch (err) {
             listEl.innerHTML = `<div style='color:#fff;text-align:center;padding:2em;'>Failed to load initiatives: ${err.message}</div>`;
         }
     }
 
     toggleInitiativeExpand(idx) {
-        // Toggle expand/collapse
         this._expanded = this._expanded || [];
         this._expanded[idx] = !this._expanded[idx];
         const expandEl = document.getElementById(`initiative-expand-${idx}`);
         if (expandEl) {
             expandEl.style.display = this._expanded[idx] ? 'block' : 'none';
         }
-        // Change arrow
         const rowEl = document.getElementById(`initiative-row-${idx}`);
         if (rowEl) {
             rowEl.querySelector('div[style*="color:#b0b3b8;font-size:1em;"]').innerHTML = this._expanded[idx] ? '&#8963;' : '&#8964;';
@@ -682,7 +688,6 @@ class InitiativeApp {
     }
 
     async showPRDLink(id) {
-        // Fetch initiative and show PRD link in a modal or alert for now
         try {
             const response = await fetch(`/api/initiatives/${id}`);
             if (!response.ok) throw new Error('Failed to fetch initiative');
@@ -698,56 +703,121 @@ class InitiativeApp {
         }
     }
 
+    async deleteInitiative(id) {
+        if (!confirm('Are you sure you want to delete this initiative? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/initiatives/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete initiative');
+            }
+            
+            this.showAllInitiatives();
+            alert('Initiative deleted successfully!');
+            
+        } catch (error) {
+            alert('Failed to delete initiative: ' + error.message);
+        }
+    }
+
     async showAllTeams() {
+        this.setActiveNav('teams');
         this.renderNavBar();
-        document.getElementById('main-content').innerHTML = `<div style='background:#181A20;min-height:100vh;padding:2rem;margin-top:90px;'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;'><h1 style='color:#fff;font-size:2rem;font-weight:700;'>Teams</h1><button onclick='app.showCreateTeam()' style='background:#00E0C6;color:#181A20;font-weight:600;padding:0.7em 1.5em;border-radius:8px;border:none;font-size:1rem;box-shadow:0 2px 8px #0002;cursor:pointer;'>+ Create Team</button></div><div id='teams-list'></div></div>`;
+        
+        document.getElementById('main-content').innerHTML = `
+            <div style='background:#181A20;min-height:calc(100vh - 120px);padding:2rem;margin-top:120px;'>
+                <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;'>
+                    <h1 style='color:#fff;font-size:2rem;font-weight:700;'>Teams</h1>
+                    <button onclick='app.showCreateTeam()' class='btn btn-primary'>+ Create Team</button>
+                </div>
+                <div id='teams-list'>
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <p style="color:#fff;">Loading teams...</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
         const listEl = document.getElementById('teams-list');
+        
         try {
             const response = await fetch('/api/teams');
             if (!response.ok) throw new Error('Failed to fetch teams');
+            
             const result = await response.json();
             const teams = result.data || result;
+            
             if (!teams.length) {
                 listEl.innerHTML = `<div style='color:#fff;text-align:center;padding:2em;'>No teams found.</div>`;
                 return;
             }
-            listEl.innerHTML = `<table style='width:100%;background:#23242A;border-radius:12px;color:#fff;'><thead><tr><th style='padding:1em;'>Name</th><th>PM</th><th>PM Email</th><th>TL</th><th>TL Email</th><th>EM</th><th>EM Email</th><th>Jira Project</th><th>Slack</th><th>Actions</th></tr></thead><tbody>${teams.map(team => {
-                if (this._editingTeam === team.id) {
-                    // Editable row
-                    return `<tr style='border-bottom:1px solid #333;'>
-                        <td style='padding:1em;'><input id='edit_team_name' value='${team.team_name||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_pm' value='${team.pm||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_pm_email' value='${team.pm_email||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_tl' value='${team.tl||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_tl_email' value='${team.tl_email||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_em' value='${team.em||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_em_email' value='${team.em_email||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_jira_project_code' value='${team.jira_project_code||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td><input id='edit_slack_channel' value='${team.slack_channel||''}' style='width:100%;padding:0.3em;border-radius:4px;border:none;'/></td>
-                        <td style='white-space:nowrap;'>
-                            <button onclick="app.saveTeamEdit('${team.id}')" style='background:#00E0C6;color:#181A20;border:none;padding:0.4em 1em;border-radius:6px;font-weight:600;cursor:pointer;margin-right:0.5em;'>Save</button>
-                            <button onclick="app.cancelTeamEdit()" style='background:#23242A;color:#fff;border:1px solid #444;padding:0.4em 1em;border-radius:6px;font-weight:600;cursor:pointer;'>Cancel</button>
-                        </td>
-                    </tr>`;
-                } else {
-                    // Display row
-                    return `<tr style='border-bottom:1px solid #333;'>
-                        <td style='padding:1em;'>${team.team_name}</td>
-                        <td>${team.pm||''}</td>
-                        <td>${team.pm_email||''}</td>
-                        <td>${team.tl||''}</td>
-                        <td>${team.tl_email||''}</td>
-                        <td>${team.em||''}</td>
-                        <td>${team.em_email||''}</td>
-                        <td>${team.jira_project_code||''}</td>
-                        <td>${team.slack_channel||''}</td>
-                        <td style='white-space:nowrap;'>
-                            <button onclick="app.editTeamRow('${team.id}')" style='background:#00E0C6;color:#181A20;border:none;padding:0.4em 1em;border-radius:6px;font-weight:600;cursor:pointer;margin-right:0.5em;'>Edit</button>
-                            <button onclick="app.deleteTeam('${team.id}', '${team.team_name}')" style='background:#ff4d4f;color:#fff;border:none;padding:0.4em 1em;border-radius:6px;font-weight:600;cursor:pointer;'>Delete</button>
-                        </td>
-                    </tr>`;
-                }
-            }).join('')}</tbody></table>`;
+            
+            listEl.innerHTML = `
+                <table style='width:100%;background:#23242A;border-radius:12px;color:#fff;'>
+                    <thead>
+                        <tr>
+                            <th style='padding:1em;'>Name</th>
+                            <th>PM</th>
+                            <th>PM Email</th>
+                            <th>TL</th>
+                            <th>TL Email</th>
+                            <th>EM</th>
+                            <th>EM Email</th>
+                            <th>Jira Project</th>
+                            <th>Slack</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${teams.map(team => {
+                            if (this._editingTeam === team.id) {
+                                return `
+                                    <tr style='border-bottom:1px solid #333;'>
+                                        <td style='padding:1em;'><input id='edit_team_name' value='${team.team_name||''}' class='form-control'/></td>
+                                        <td><input id='edit_pm' value='${team.pm||''}' class='form-control'/></td>
+                                        <td><input id='edit_pm_email' value='${team.pm_email||''}' class='form-control'/></td>
+                                        <td><input id='edit_tl' value='${team.tl||''}' class='form-control'/></td>
+                                        <td><input id='edit_tl_email' value='${team.tl_email||''}' class='form-control'/></td>
+                                        <td><input id='edit_em' value='${team.em||''}' class='form-control'/></td>
+                                        <td><input id='edit_em_email' value='${team.em_email||''}' class='form-control'/></td>
+                                        <td><input id='edit_jira_project_code' value='${team.jira_project_code||''}' class='form-control'/></td>
+                                        <td><input id='edit_slack_channel' value='${team.slack_channel||''}' class='form-control'/></td>
+                                        <td style='white-space:nowrap;'>
+                                            <button onclick="app.saveTeamEdit('${team.id}')" class='btn btn-sm btn-success' style='margin-right:0.5em;'>Save</button>
+                                            <button onclick="app.cancelTeamEdit()" class='btn btn-sm btn-secondary'>Cancel</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            } else {
+                                return `
+                                    <tr style='border-bottom:1px solid #333;'>
+                                        <td style='padding:1em;'>${team.team_name}</td>
+                                        <td>${team.pm||''}</td>
+                                        <td>${team.pm_email||''}</td>
+                                        <td>${team.tl||''}</td>
+                                        <td>${team.tl_email||''}</td>
+                                        <td>${team.em||''}</td>
+                                        <td>${team.em_email||''}</td>
+                                        <td>${team.jira_project_code||''}</td>
+                                        <td>${team.slack_channel||''}</td>
+                                        <td style='white-space:nowrap;'>
+                                            <button onclick="app.editTeamRow('${team.id}')" class='btn btn-sm btn-primary' style='margin-right:0.5em;'>Edit</button>
+                                            <button onclick="app.deleteTeam('${team.id}', '${team.team_name}')" class='btn btn-sm btn-danger'>Delete</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         } catch (err) {
             listEl.innerHTML = `<div style='color:#fff;text-align:center;padding:2em;'>Failed to load teams: ${err.message}</div>`;
         }
@@ -775,6 +845,7 @@ class InitiativeApp {
             jira_project_code: document.getElementById('edit_jira_project_code').value,
             slack_channel: document.getElementById('edit_slack_channel').value
         };
+        
         try {
             const resp = await fetch(`/api/teams/${id}`, {
                 method: 'PUT',
@@ -804,10 +875,7 @@ class InitiativeApp {
                 throw new Error(error.error || 'Failed to delete team');
             }
             
-            // Refresh the teams list
             this.showAllTeams();
-            
-            // Show success message
             alert('Team deleted successfully!');
             
         } catch (error) {
@@ -816,19 +884,63 @@ class InitiativeApp {
     }
 
     async showCreateTeam() {
+        this.setActiveNav('teams');
         this.renderNavBar();
-        document.getElementById('main-content').innerHTML = `<div style='background:#181A20;min-height:100vh;padding:2rem;margin-top:90px;'><h1 style='color:#fff;font-size:2rem;font-weight:700;margin-bottom:2rem;'>Create Team</h1><form id='team-create-form' style='background:#23242A;padding:2em;border-radius:12px;max-width:500px;margin:auto;color:#fff;'>
-            <div style='margin-bottom:1em;'><label>Name<br><input type='text' id='team_name' style='width:100%;padding:0.5em;border-radius:6px;border:none;' required/></label></div>
-            <div style='margin-bottom:1em;'><label>PM<br><input type='text' id='pm' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>PM Email<br><input type='email' id='pm_email' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>TL<br><input type='text' id='tl' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>TL Email<br><input type='email' id='tl_email' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>EM<br><input type='text' id='em' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>EM Email<br><input type='email' id='em_email' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>Jira Project Code<br><input type='text' id='jira_project_code' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <div style='margin-bottom:1em;'><label>Slack Channel<br><input type='text' id='slack_channel' style='width:100%;padding:0.5em;border-radius:6px;border:none;'/></label></div>
-            <button type='submit' style='background:#00E0C6;color:#181A20;font-weight:600;padding:0.7em 1.5em;border-radius:8px;border:none;font-size:1rem;box-shadow:0 2px 8px #0002;cursor:pointer;width:100%;margin-top:1em;'>Create Team</button>
-        </form></div>`;
+        
+        document.getElementById('main-content').innerHTML = `
+            <div style='background:#181A20;min-height:100vh;padding:2rem;margin-top:90px;'>
+                <h1 style='color:#fff;font-size:2rem;font-weight:700;margin-bottom:2rem;'>Create Team</h1>
+                <form id='team-create-form' style='background:#23242A;padding:2em;border-radius:12px;max-width:500px;margin:auto;color:#fff;'>
+                    <div style='margin-bottom:1em;'>
+                        <label>Name<br>
+                        <input type='text' id='team_name' class='form-control' required/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>PM<br>
+                        <input type='text' id='pm' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>PM Email<br>
+                        <input type='email' id='pm_email' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>TL<br>
+                        <input type='text' id='tl' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>TL Email<br>
+                        <input type='email' id='tl_email' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>EM<br>
+                        <input type='text' id='em' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>EM Email<br>
+                        <input type='email' id='em_email' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>Jira Project Code<br>
+                        <input type='text' id='jira_project_code' class='form-control'/>
+                        </label>
+                    </div>
+                    <div style='margin-bottom:1em;'>
+                        <label>Slack Channel<br>
+                        <input type='text' id='slack_channel' class='form-control'/>
+                        </label>
+                    </div>
+                    <button type='submit' class='btn btn-primary btn-block'>Create Team</button>
+                </form>
+            </div>
+        `;
+        
         document.getElementById('team-create-form').addEventListener('submit', this.handleCreateTeam.bind(this));
     }
 
@@ -849,15 +961,39 @@ class InitiativeApp {
             const response = await fetch('/api/teams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ team_name, pm, pm_email, tl, tl_email, em, em_email, jira_project_code, slack_channel })
+                body: JSON.stringify({ 
+                    team_name, pm, pm_email, tl, tl_email, em, em_email, 
+                    jira_project_code, slack_channel 
+                })
             });
             
             if (!response.ok) throw new Error('Failed to create team');
             
-            const result = await response.json();
             this.showAllTeams();
         } catch (error) {
             this.showError('Failed to create team: ' + error.message);
         }
     }
 }
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Initializing Initiative Management System...');
+    window.app = new InitiativeApp();
+});
+
+// Global error handler for unhandled errors
+window.addEventListener('error', (event) => {
+    console.error('❌ Global error:', event.error);
+    if (window.app) {
+        window.app.showError('An unexpected error occurred: ' + event.error.message);
+    }
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Unhandled promise rejection:', event.reason);
+    if (window.app) {
+        window.app.showError('Network error: ' + event.reason.message);
+    }
+});

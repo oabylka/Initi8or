@@ -27,6 +27,7 @@ router.delete('/teams/:id', TeamController.delete);
 
 // Initiative routes (add DELETE)
 router.delete('/initiatives/:id', InitiativeController.delete);
+router.put('/initiatives/:id', InitiativeController.update);
 
 // Health check endpoint
 router.get('/health', (req, res) => {
